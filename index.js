@@ -1,8 +1,6 @@
 const express = require('express');
-
 const app = express();
 app.use(express.json());
-
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
@@ -38,7 +36,12 @@ app.post('/chat', async (req, res) => {
       resume: sessionId || undefined
     });
     for await (const msg of query({ prompt: message, options })) {
+      console.log('MSG TYPE:', msg.type, JSON.stringify(msg).substring(0, 200));
       if (msg.type === 'result') response = msg.result;
+      if (msg.type === 'assistant') {
+        const block = msg.message?.content?.[0];
+        if (block?.type === 'text') response = block.text;
+      }
       if (msg.session_id && !sessionId) {
         sessionId = msg.session_id;
         console.log('Session ID:', sessionId);
@@ -47,6 +50,7 @@ app.post('/chat', async (req, res) => {
     }
     res.json({ response, session_id: sessionId });
   } catch (err) {
+    console.error('CHAT ERROR:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
