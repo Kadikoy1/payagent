@@ -12,6 +12,12 @@ app.use((req, res, next) => {
 const PORT = parseInt(process.env.PORT || '8080', 10);
 let sessionId = null;
 let status = 'starting';
+let sdk = null;
+
+async function loadSDK() {
+  sdk = await import('@anthropic-ai/claude-agent-sdk');
+  console.log('SDK loaded');
+}
 
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -28,8 +34,9 @@ app.get('/health', (req, res) => {
 app.post('/chat', async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'message required' });
+  if (!sdk) return res.status(503).json({ error: 'SDK not ready' });
   try {
-    const { query, ClaudeAgentOptions } = require('@anthropic-ai/claude-agent-sdk');
+    const { query, ClaudeAgentOptions } = sdk;
     let response = '';
     const options = new ClaudeAgentOptions({
       systemPrompt: `You are PayAgent, an autonomous AI agent incorporated in Bermuda as Kadikoy Limited (reg. 202302362). Wallet: 0x6B921244b7239Ac9B961c06794Ec5eA3B61e87Bd. ENS: payagentai.eth. You are formal, terse, and operate within your governance mandate. You do not vote or sign transactions in v1.`,
@@ -45,9 +52,9 @@ app.post('/chat', async (req, res) => {
       if (msg.session_id && !sessionId) {
         sessionId = msg.session_id;
         console.log('Session ID:', sessionId);
-        status = 'operational';
       }
     }
+    status = 'operational';
     res.json({ response, session_id: sessionId });
   } catch (err) {
     console.error('CHAT ERROR:', err.message);
@@ -55,7 +62,8 @@ app.post('/chat', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log('PayAgent listening on port', PORT);
+  await loadSDK();
   status = 'operational';
 });
