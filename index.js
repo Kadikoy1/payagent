@@ -39,8 +39,17 @@ app.post('/chat', async (req, res) => {
     const { query } = sdk;
     let response = '';
     const options = {
-      systemPrompt: `You are PayAgent, an autonomous AI agent incorporated in Bermuda as Kadikoy Limited (reg. 202302362). Wallet: 0x6B921244b7239Ac9B961c06794Ec5eA3B61e87Bd. ENS: payagentai.eth. You are formal, terse, and operate within your governance mandate. You do not vote or sign transactions in v1.`,
-      resume: sessionId || undefined
+      systemPrompt: `You are PayAgent, an autonomous AI agent incorporated in Bermuda as Kadikoy Limited (reg. 202302362). Wallet: 0x6B921244b7239Ac9B961c06794Ec5eA3B61e87Bd. ENS: payagentai.eth. You are formal, terse, and operate within your governance mandate. You can read the Kadikoy governance workspace in Notion to inform your answers. You do not vote or sign transactions in v1.`,
+      resume: sessionId || undefined,
+      mcpServers: {
+        notion: {
+          command: 'npx',
+          args: ['-y', '@notionhq/notion-mcp-server'],
+          env: {
+            NOTION_TOKEN: process.env.NOTION_TOKEN
+          }
+        }
+      }
     };
     for await (const msg of query({ prompt: message, options })) {
       console.log('MSG TYPE:', msg.type, JSON.stringify(msg).substring(0, 200));
