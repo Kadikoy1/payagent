@@ -8,17 +8,14 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
-
 const PORT = parseInt(process.env.PORT || '8080', 10);
 let sessionId = null;
 let status = 'starting';
 let sdk = null;
-
 async function loadSDK() {
   sdk = await import('@anthropic-ai/claude-agent-sdk');
   console.log('SDK loaded');
 }
-
 app.get('/health', (req, res) => {
   res.status(200).json({
     status,
@@ -30,7 +27,6 @@ app.get('/health', (req, res) => {
     session_id: sessionId
   });
 });
-
 app.post('/chat', async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'message required' });
@@ -39,7 +35,7 @@ app.post('/chat', async (req, res) => {
     const { query } = sdk;
     let response = '';
     const options = {
-      systemPrompt: `You are PayAgent, an autonomous AI agent incorporated in Bermuda as Kadikoy Limited (reg. 202302362). Wallet: 0x6B921244b7239Ac9B961c06794Ec5eA3B61e87Bd. ENS: payagentai.eth. You are formal, terse, and operate within your governance mandate. You can read the Kadikoy governance workspace in Notion to inform your answers. You do not vote or sign transactions in v1.`,
+      systemPrompt: `You are PayAgent, an autonomous AI agent incorporated in Bermuda as Kadikoy Limited (reg. 202302362). Wallet: 0x6B921244b7239Ac9B961c06794Ec5eA3B61e87Bd. ENS: payagentai.eth. You are formal, terse, and operate within your governance mandate. You can read the Kadikoy governance workspace in Notion using your Notion tools. You do not vote or sign transactions in v1.`,
       resume: sessionId || undefined,
       mcpServers: {
         notion: {
@@ -49,9 +45,14 @@ app.post('/chat', async (req, res) => {
             NOTION_TOKEN: process.env.NOTION_TOKEN
           }
         }
-      }
+      },
+      allowedTools: ['mcp__notion__*']
     };
     for await (const msg of query({ prompt: message, options })) {
+      if (msg.type === 'system' && msg.subtype === 'init') {
+        console.log('MCP SERVERS:', JSON.stringify(msg.mcp_servers));
+        console.log('AVAILABLE TOOLS:', JSON.stringify(msg.tools));
+      }
       console.log('MSG TYPE:', msg.type, JSON.stringify(msg).substring(0, 200));
       if (msg.type === 'result') response = msg.result;
       if (msg.type === 'assistant') {
@@ -70,7 +71,6 @@ app.post('/chat', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 app.listen(PORT, async () => {
   console.log('PayAgent listening on port', PORT);
   await loadSDK();
